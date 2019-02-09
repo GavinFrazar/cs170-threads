@@ -4,5 +4,16 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib") 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 
+set(HEADERS
+  threads.h)
+
+set(SOURCES
+  threads.c)
+
 project("threads" C)
-add_executable(test main.c)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32") 
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -m32")
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -m32")
+add_executable(test main.c ${SOURCES}) 
+target_compile_options(test PRIVATE -m32)
+
