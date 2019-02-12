@@ -20,16 +20,21 @@ static int ptr_mangle(int p) {
 }
 
 static void AlarmHandler(int signum) {
+  /* printf("here1\n"); */
   threads[running_thread].state = ready;
+  /* printf("here2\n"); */
   int longjumped_here = setjmp(threads[running_thread].registers);
   if (!longjumped_here) {
     /* just saved state */
+    /* printf("saved. this is thread #%d\n", running_thread); */
     do {
       running_thread = (running_thread + 1) % num_threads;
     } while (threads[running_thread].state != ready);
     ualarm(50000, 0);
+    /* printf("here we go to thread #%d\n", running_thread); */
     longjmp(threads[running_thread].registers, 1);
   } else {
+    /* printf("longjumped\n"); */
     threads[running_thread].state = running;
     // set ONE alarm
     ualarm(50000, 0);
@@ -47,8 +52,10 @@ int pthread_create(pthread_t *restrict_thread,
   // disable alarm
   sigprocmask(SIG_BLOCK, &sigs, NULL);
   if (!sigaction_set) {
+    memset(&threads, 0, MAX_THREADS * sizeof(TCB));
     sigaction_set = true;
     struct sigaction act;
+    sigemptyset(&act.sa_mask);
     memset(&act, 0, sizeof(struct sigaction));
     act.sa_flags = SA_NODEFER;
     act.sa_handler = AlarmHandler;
@@ -64,32 +71,22 @@ int pthread_create(pthread_t *restrict_thread,
   thread_info.tid = num_threads;
   *restrict_thread = num_threads;
   thread_info.stack = (byte *)calloc(STACK_SIZE, sizeof(byte));
-  // TODO -- change pointer cast dereferencing
-  printf("here\n");
-  printf("%d\n", sp_idx);
-  intptr_t t = ((intptr_t *)thread_info.stack)[sp_idx - 4];
-  printf("good%lu\n", t);
   // push arg
   sp_idx -= 4;
-  ((intptr_t *)thread_info.stack)[sp_idx] = (intptr_t)(restrict_arg);
+  *((intptr_t *)(thread_info.stack + sp_idx)) = (intptr_t)(restrict_arg);
 
   // push pthread_exit as ret
   sp_idx -= 4;
-  ((intptr_t *)thread_info.stack)[sp_idx] = (intptr_t)(pthread_exit);
-
-  // push ebp
-  sp_idx -= 4;
-  ((intptr_t *)thread_info.stack)[sp_idx] =
-      (intptr_t)&thread_info.stack[bp_idx];
+  *((intptr_t *)(thread_info.stack + sp_idx)) = (intptr_t)(pthread_exit);
 
   // save registers
   setjmp(thread_info.registers);
 
   // modify esp, ebp, eip
   thread_info.registers[0].__jmpbuf[JB_SP] =
-      ptr_mangle((intptr_t)&thread_info.stack[sp_idx]);
+      ptr_mangle((intptr_t)(thread_info.stack + sp_idx));
   thread_info.registers[0].__jmpbuf[JB_BP] =
-      ptr_mangle((intptr_t)&thread_info.stack[sp_idx]);
+      ptr_mangle((intptr_t)(thread_info.stack + sp_idx));
   thread_info.registers[0].__jmpbuf[JB_PC] =
       ptr_mangle((intptr_t)start_routine);
 
@@ -108,19 +105,19 @@ int pthread_create(pthread_t *restrict_thread,
 }
 
 void pthread_exit(void *value_ptr) {
+  /* printf("exit time for thread#%d\n", running_thread); */
   if (threads[running_thread].state != exited) {
     threads[running_thread].state = exited;
+    if (running_thread != 0) {
+      free(threads[running_thread].stack);
+      threads[running_thread].stack = NULL;
+    }
     if (alive_threads > 1) {
       --alive_threads;
       do {
         running_thread = (running_thread + 1) % num_threads;
       } while (threads[running_thread].state != ready);
     } else {
-      for (int i = 1; i < MAX_THREADS; ++i) {
-        if (threads[i].stack != NULL) {
-          free(threads[i].stack);
-        }
-      }
       running_thread = 0;
     }
     longjmp(threads[running_thread].registers, 1);

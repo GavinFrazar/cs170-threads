@@ -15,7 +15,7 @@ void* bar(void* v) {
 int main(int argc, char* argv[]) {
   pthread_t tid1, tid2;
   int i = 42;
-  pthread_create(&tid1, NULL, foo, &i);
+  pthread_create(&tid1, NULL, foo, NULL);
   pthread_create(&tid2, NULL, bar, NULL);
   while (true) printf("main\n");
   return 0;
