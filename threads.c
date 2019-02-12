@@ -97,7 +97,7 @@ int pthread_create(pthread_t *restrict_thread,
     ualarm(remaining, 0);
   }
   ++alive_threads;
-  return thread_info.tid;
+  return 0;
 }
 
 void pthread_exit(void *value_ptr) {
