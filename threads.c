@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 uint num_threads = 1;
-uint alive_threads = 0;
+uint alive_threads = 1;
 uint running_thread = 0;
 bool sigaction_set = false;
 
@@ -20,21 +20,16 @@ static int ptr_mangle(int p) {
 }
 
 static void AlarmHandler(int signum) {
-  /* printf("here1\n"); */
   threads[running_thread].state = ready;
-  /* printf("here2\n"); */
   int longjumped_here = setjmp(threads[running_thread].registers);
   if (!longjumped_here) {
     /* just saved state */
-    /* printf("saved. this is thread #%d\n", running_thread); */
     do {
       running_thread = (running_thread + 1) % num_threads;
     } while (threads[running_thread].state != ready);
     ualarm(50000, 0);
-    /* printf("here we go to thread #%d\n", running_thread); */
     longjmp(threads[running_thread].registers, 1);
   } else {
-    /* printf("longjumped\n"); */
     threads[running_thread].state = running;
     // set ONE alarm
     ualarm(50000, 0);
@@ -101,11 +96,11 @@ int pthread_create(pthread_t *restrict_thread,
   if (remaining > 0) {
     ualarm(remaining, 0);
   }
+  ++alive_threads;
   return thread_info.tid;
 }
 
 void pthread_exit(void *value_ptr) {
-  /* printf("exit time for thread#%d\n", running_thread); */
   if (threads[running_thread].state != exited) {
     threads[running_thread].state = exited;
     if (running_thread != 0) {
@@ -118,7 +113,7 @@ void pthread_exit(void *value_ptr) {
         running_thread = (running_thread + 1) % num_threads;
       } while (threads[running_thread].state != ready);
     } else {
-      running_thread = 0;
+      exit(0);
     }
     longjmp(threads[running_thread].registers, 1);
   } else {

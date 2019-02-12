@@ -1,0 +1,12 @@
+# What I did
+What I did was to create a static array to TCB structs which contain thread
+info. Each time a new thread is created, the thread's id is used to index into
+this array and allocate a new stack, set registers, etc. I keep track of the
+number of living threads, including main, and when pthread_exit is called if
+there is only 1 remaining thread my program calls exit(0). My signal handler
+just saves the current thread's state, finds a ready thread to schedule, sets a
+single 50000ns alarm and then longjmp is used to jump to the thread's execution.
+
+# Issues
+I had no problems. My program passed all the basic tests and my own tests.
+
